@@ -13,6 +13,9 @@ struct Order {
     OrderType type;
     uint64_t timestamp;
 
+    Order()
+        : order_id(0), price(0), quantity(0), side(Side::BUY), type(OrderType::LIMIT), timestamp(0) {}
+
     Order(uint64_t id, uint64_t p, uint64_t q, Side s, OrderType t) 
         : order_id(id), price(p), quantity(q), side(s), type(t),
         timestamp(std::chrono::duration_cast<std::chrono::nanoseconds>(

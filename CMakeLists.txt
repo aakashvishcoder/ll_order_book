@@ -10,18 +10,13 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 find_package(Threads REQUIRED)
 
 # Include directories
-include_directories(${PROJECT_SOURCE_DIR}/include)
+include_directories(${PROJECT_SOURCE_DIR})
 
 # Core Library
 add_library(OrderBookLib STATIC
     src/OrderBook.cpp
-    src/MatchingEngine.cpp
 )
 target_link_libraries(OrderBookLib PUBLIC Threads::Threads)
-
-# Main Executable
-add_executable(orderbook_app src/main.cpp)
-target_link_libraries(orderbook_app PRIVATE OrderBookLib)
 
 # Stress Test Executable
 add_executable(stress_test tests/stress_test.cpp)
@@ -29,5 +24,9 @@ target_link_libraries(stress_test PRIVATE OrderBookLib)
 
 # Compiler optimizations for Release
 if(CMAKE_BUILD_TYPE STREQUAL "Release")
-    target_compile_options(OrderBookLib PRIVATE -O3 -march=native)
+    if (CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
+        target_compile_options(OrderBookLib PRIVATE -O3 -march=native)
+    elseif (MSVC)
+        target_compile_options(OrderBookLib PRIVATE /O2)
+    endif()
 endif()

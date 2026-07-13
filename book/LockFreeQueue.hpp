@@ -12,7 +12,7 @@ public:
     bool push(const T& item) {
         size_t current_tail= tail_.load(std::memory_order_relaxed);
         size_t next_tail = (current_tail+1)& (Size-1);
-        if (next_tail ==head.load(std::memory_order_acquire)) return false;
+        if (next_tail == head_.load(std::memory_order_acquire)) return false;
 
         buffer_[current_tail]= item;
         tail_.store(next_tail, std::memory_order_release);
