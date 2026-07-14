@@ -44,3 +44,30 @@ enable_testing()
 add_executable(unit_tests tests/unit_tests.cpp)
 target_link_libraries(unit_tests PRIVATE OrderBookLib GTest::gtest_main)
 add_test(NAME OrderBookTests COMMAND unit_tests)
+
+# Check for CUDA support
+include(CheckLanguage)
+check_language(CUDA)
+
+if(CMAKE_CUDA_COMPILER)
+    enable_language(CUDA)
+    find_package(CUDAToolkit REQUIRED)
+    
+    set(CMAKE_CUDA_STANDARD 17)
+    set(CMAKE_CUDA_STANDARD_REQUIRED ON)
+    
+    # Add the GPU Analytics Library
+    add_library(GpuAnalyticsLib STATIC 
+        src/GpuAnalytics.cpp 
+        src/analytics_kernel.cu
+    )
+    set_target_properties(GpuAnalyticsLib PROPERTIES CUDA_SEPARABLE_COMPILATION ON)
+    target_link_libraries(GpuAnalyticsLib PRIVATE CUDA::cudart OrderBookLib)
+    target_include_directories(GpuAnalyticsLib PUBLIC ${PROJECT_SOURCE_DIR}/include)
+    
+    # Link to main app
+    target_link_libraries(orderbook_app PRIVATE GpuAnalyticsLib)
+    target_link_libraries(stress_test PRIVATE GpuAnalyticsLib)
+else()
+    message(WARNING "CUDA compiler not found. GPU Analytics will be disabled.")
+endif()

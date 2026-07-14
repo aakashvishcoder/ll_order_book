@@ -1,7 +1,8 @@
 #pragma once
-#include "Order.hpp"
-#include "MemoryPool.hpp"
-#include "AuditLog.hpp"
+#include "Order.h"
+#include "MemoryPool.h"
+#include "AuditLog.h"
+#include "GPUSnapshot.h"
 #include <map>
 #include <list>
 #include <unordered_map>
@@ -40,6 +41,9 @@ public:
     bool addOrder(Order&& order);
     bool cancelOrder(uint64_t order_id_);
 
+    
+    GPUBookSnapshot getSnapshot() const;
+    
     std::optional<uint64_t> getBestBid() const;
     std::optional<uint64_t> getBestAsk() const;
     std::vector<std::pair<uint64_t,uint64_t>> getDepth(Side side, size_t levels) const;
@@ -53,3 +57,4 @@ private:
 
     void removeFromBook(Order* order);
 };
+

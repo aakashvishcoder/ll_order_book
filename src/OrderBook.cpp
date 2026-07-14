@@ -1,4 +1,4 @@
-#include "book/OrderBook.hpp"
+#include "book/OrderBook.h"
 #include <stdexcept>
 
 
@@ -137,4 +137,29 @@ std::vector<std::pair<uint64_t, uint64_t>> OrderBook::getDepth(Side side, size_t
         }
     }
     return depth;
+}
+
+GPUBookSnapshot OrderBook::getSnapshot() const {
+    GPUBookSnapshot snap={};
+
+    snap.bid_levels= std::min((size_t)50, bids_.size());
+    snap.ask_levels = std::min((size_t)50, asks_.size());
+    int i =0;
+    for (auto it= bids_.begin(); it!= bids_.end() && i <snap.bid_levels; ++it, ++i){
+        snap.bids[i].price= it->first;
+        uint64_t qty=0;
+        for (const auto& o : it->second) qty += o.quantity;
+        snap.bids[i].quantity= qty;
+    }
+    i=0;
+
+    for (auto it= asks_.begin(); it!= asks_.end() &&i < snap.ask_levels; ++it, ++i){
+        snap.asks[i].price= it->first;
+
+        uint64_t qty = 0;
+        for (const auto& o: it->second) qty+= o.quantity;
+        snap.asks[i].quantity = qty;
+    }
+
+    return snap;
 }

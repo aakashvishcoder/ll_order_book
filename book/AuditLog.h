@@ -1,7 +1,8 @@
 #pragma once
-#include <fstream>
+#include <cstdio>
 #include <string>
 #include <chrono>
+#include <mutex>
 enum class EventType : uint8_t { ADD, CANCEL, FILL };
 
 struct AuditEvent{
@@ -14,6 +15,15 @@ struct AuditEvent{
 
 class AuditLog {
 public:
+    explicit AuditLog(const std::string& file_path = "audit.log")
+        : file_(std::fopen(file_path.c_str(), "ab")) {}
+
+    ~AuditLog() {
+        if (file_ != nullptr) {
+            std::fclose(file_);
+        }
+    }
+
     void logEvent(EventType type, uint64_t order_id, uint64_t price, uint64_t qty) {
         AuditEvent event;
         event.timestamp_ns =std::chrono::duration_cast<std::chrono::nanoseconds>(
@@ -26,8 +36,14 @@ public:
         writeToFile(event);
     }
 private:    
-    std::ofstream file_;
+    std::FILE* file_;
+    std::mutex write_mutex_;
+
     void writeToFile(const AuditEvent& e) {
-        file_.write(reinterpret_cast<const char*>(&e), sizeof(e));
+        if (file_ == nullptr) {
+            return;
+        }
+        std::lock_guard<std::mutex> lock(write_mutex_);
+        std::fwrite(&e, sizeof(e), 1, file_);
     }
 };

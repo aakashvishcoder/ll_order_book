@@ -1,8 +1,7 @@
-#include "OrderBookManager.hpp"
-#include "LockFreeQueue.hpp"
-#include "LatencyMonitor.hpp"
-#include "AuditLog.hpp"
-#include "MemoryPool.hpp"
+#include "book/OrderBookManager.h"
+#include "book/LockFreeQueue.h"
+#include "book/LatencyMonitor.h"
+#include "book/AnalyticsEngine.h"
 #include <thread>
 #include <random>
 #include <iostream>
@@ -10,8 +9,6 @@
 
 int main() {
     // 1. Initialize Core Components
-    AuditLog logger;
-    MemoryPool<Order> pool(2000000); // Pre-allocate 2M orders
     OrderBookManager manager;
     
     // Create instruments
@@ -23,12 +20,14 @@ int main() {
 
     SPSCQueue<Order, 1024 * 1024> queue;
     LatencyMonitor monitor;
+    AnalyticsEngine analytics;
+    std::atomic<uint64_t> orders_processed{0};
     std::atomic<bool> running{true};
 
     // 2. Matching Engine Thread
     std::thread matching_thread([&]() {
         Order order;
-        while (running.load() || queue.pop(order)) {
+        while (running.load()) {
             if (queue.pop(order)) {
                 auto start = std::chrono::high_resolution_clock::now();
                 
@@ -37,7 +36,23 @@ int main() {
                 
                 auto end = std::chrono::high_resolution_clock::now();
                 monitor.recordLatency(std::chrono::duration_cast<std::chrono::nanoseconds>(end - start).count());
+                uint64_t processed = ++orders_processed;
+                if (processed % 1000 == 0) {
+                    auto metrics = analytics.calculate(*aapl_book);
+                    (void)metrics;
+                    // std::cout << "TOB Imbalance: " << metrics.top_of_book_imbalance << "\n";
+                }
+            } else {
+                std::this_thread::yield();
             }
+        }
+
+        while (queue.pop(order)) {
+            auto start = std::chrono::high_resolution_clock::now();
+            aapl_book->addOrder(std::move(order));
+            auto end = std::chrono::high_resolution_clock::now();
+            monitor.recordLatency(std::chrono::duration_cast<std::chrono::nanoseconds>(end - start).count());
+            ++orders_processed;
         }
     });
 
@@ -68,7 +83,7 @@ int main() {
     
     std::cout << "\n=== HFT Order Book Stress Test ===\n";
     std::cout << "Throughput: " << (TOTAL_ORDERS / (duration_ms / 1000.0)) << " orders/sec\n";
-    monitor.printStats();
+    monitor.printStatus();
     
     auto depth = aapl_book->getDepth(Side::BUY, 5);
     std::cout << "Top 5 Bid Levels (Price, Qty):\n";

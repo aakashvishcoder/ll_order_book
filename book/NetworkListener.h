@@ -1,5 +1,5 @@
 #pragma once
-#include "LockFreeQueue.hpp"
+#include "LockFreeQueue.h"
 #include <atomic>
 #include <string>
 class NetworkListener {

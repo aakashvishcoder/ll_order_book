@@ -1,12 +1,16 @@
-#include "book/LatencyMonitor.hpp"
-#include "book/OrderBook.hpp"
-#include "book/LockFreeQueue.hpp"
+#include "book/LatencyMonitor.h"
+#include "book/OrderBook.h"
+#include "book/LockFreeQueue.h"
+#include "book/AuditLog.h"
+#include "book/MemoryPool.h"
 #include <thread>
 #include <random>
 #include <iostream>
 
 int main() {
-    OrderBook book;
+    MemoryPool<Order> pool(2000000);
+    AuditLog logger;
+    OrderBook book(pool, logger);
     SPSCQueue<Order, 1024 * 1024> queue; // 1M queue
     LatencyMonitor monitor;
     std::atomic<bool> running{true};

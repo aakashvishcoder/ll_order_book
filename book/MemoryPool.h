@@ -9,7 +9,7 @@ public:
     explicit MemoryPool(size_t capacity) : capacity_(capacity), pool_(capacity), next_free_(0) {}
 
     T* allocate() {
-        if (next_free_ >=capacity) throw std::runtime_error("memory pool exhausted");
+        if (next_free_ >= capacity_) throw std::runtime_error("memory pool exhausted");
         return &pool_[next_free_++];
     }
     void deallocate(T* ptr) {
