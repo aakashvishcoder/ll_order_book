@@ -38,8 +38,8 @@ class OrderBook {
 public:
     OrderBook(MemoryPool<Order>& pool, AuditLog& logger)
         : pool_(pool), logger_(logger) {}
-    bool addOrder(Order&& order);
-    bool cancelOrder(uint64_t order_id_);
+    bool addOrder(Order&& order, bool log_event = true);
+    bool cancelOrder(uint64_t order_id_, bool log_event = true);
 
     
     GPUBookSnapshot getSnapshot() const;

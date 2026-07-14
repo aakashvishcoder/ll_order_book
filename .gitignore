@@ -1,5 +1,6 @@
 # CMake build directories
 build/
+build-asan/
 out/
 
 # CMake generated files (for in-source builds)
@@ -23,3 +24,14 @@ CTestTestfile.cmake
 # IDE/editor artifacts
 .vs/
 .vscode/
+
+# Runtime output and debug traces
+*.out
+trace.err
+trace.out
+rec_stderr.log
+rec_stdout.log
+
+# Audit log artifacts
+audit.log
+audit.log.legacy*

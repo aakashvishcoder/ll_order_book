@@ -4,8 +4,23 @@
 #include <chrono>
 #include <mutex>
 #include <cstdint>
+#include <cstring>
 #include "Order.h"
 enum class EventType : uint8_t { ADD, CANCEL, FILL };
+
+struct AuditLogFileHeader {
+    char magic[4];
+    uint32_t version;
+    uint32_t reserved;
+};
+
+constexpr uint32_t kAuditLogVersion = 1;
+constexpr char kAuditLogMagic[4] = {'A', 'L', 'O', 'G'};
+
+inline bool isValidAuditHeader(const AuditLogFileHeader& header) {
+    return std::memcmp(header.magic, kAuditLogMagic, sizeof(kAuditLogMagic)) == 0
+        && header.version == kAuditLogVersion;
+}
 
 struct AuditEvent{
     uint64_t timestamp_ns;
@@ -19,7 +34,9 @@ struct AuditEvent{
 class AuditLog {
 public:
     explicit AuditLog(const std::string& file_path = "audit.log")
-        : file_(std::fopen(file_path.c_str(), "ab")) {}
+        : file_path_(file_path), file_(nullptr) {
+        initialize();
+    }
 
     ~AuditLog() {
         if (file_ != nullptr) {
@@ -40,8 +57,76 @@ public:
         writeToFile(event);
     }
 private:    
+    std::string file_path_;
     std::FILE* file_;
     std::mutex write_mutex_;
+
+    void writeHeader() {
+        AuditLogFileHeader header{};
+        std::memcpy(header.magic, kAuditLogMagic, sizeof(kAuditLogMagic));
+        header.version = kAuditLogVersion;
+        header.reserved = 0;
+        std::fwrite(&header, sizeof(header), 1, file_);
+        std::fflush(file_);
+    }
+
+    void rotateLegacyFile() {
+        const std::string legacy_path = file_path_ + ".legacy";
+        std::remove(legacy_path.c_str());
+        std::rename(file_path_.c_str(), legacy_path.c_str());
+    }
+
+    void initialize() {
+        file_ = std::fopen(file_path_.c_str(), "rb+");
+        if (file_ == nullptr) {
+            file_ = std::fopen(file_path_.c_str(), "wb+");
+            if (file_ == nullptr) {
+                return;
+            }
+            writeHeader();
+            std::fseek(file_, 0, SEEK_END);
+            return;
+        }
+
+        std::fseek(file_, 0, SEEK_END);
+        long file_size = std::ftell(file_);
+        if (file_size == 0) {
+            std::fseek(file_, 0, SEEK_SET);
+            writeHeader();
+            std::fseek(file_, 0, SEEK_END);
+            return;
+        }
+
+        if (file_size < static_cast<long>(sizeof(AuditLogFileHeader))) {
+            std::fclose(file_);
+            file_ = nullptr;
+            rotateLegacyFile();
+            file_ = std::fopen(file_path_.c_str(), "wb+");
+            if (file_ == nullptr) {
+                return;
+            }
+            writeHeader();
+            std::fseek(file_, 0, SEEK_END);
+            return;
+        }
+
+        AuditLogFileHeader header{};
+        std::fseek(file_, 0, SEEK_SET);
+        if (std::fread(&header, sizeof(header), 1, file_) != 1 || !isValidAuditHeader(header)) {
+            std::fclose(file_);
+            file_ = nullptr;
+            rotateLegacyFile();
+            file_ = std::fopen(file_path_.c_str(), "wb+");
+            if (file_ == nullptr) {
+                return;
+            }
+            writeHeader();
+            std::fseek(file_, 0, SEEK_END);
+            return;
+        }
+
+        std::fseek(file_, 0, SEEK_END);
+    }
 
     void writeToFile(const AuditEvent& e) {
         if (file_ == nullptr) {

@@ -2,12 +2,14 @@
 #include <stdexcept>
 
 
-bool OrderBook::addOrder(Order&& order) {
+bool OrderBook::addOrder(Order&& order, bool log_event) {
     if (order_map_.find(order.order_id) != order_map_.end()) {
         throw std::invalid_argument("duplicate order id");
     }
 
-    logger_.logEvent(EventType::ADD, order.order_id, order.price, order.quantity, order.side);
+    if (log_event) {
+        logger_.logEvent(EventType::ADD, order.order_id, order.price, order.quantity, order.side);
+    }
     matchOrder(order);
 
     if (order.quantity > 0) {
@@ -25,11 +27,13 @@ bool OrderBook::addOrder(Order&& order) {
     return true;
 }
 
-bool OrderBook::cancelOrder(uint64_t order_id) {
+bool OrderBook::cancelOrder(uint64_t order_id, bool log_event) {
     auto it = order_map_.find(order_id);
     if (it ==order_map_.end()) return false;
 
-    logger_.logEvent(EventType::CANCEL, order_id, it->second->price, it->second->quantity, it->second->side);
+    if (log_event) {
+        logger_.logEvent(EventType::CANCEL, order_id, it->second->price, it->second->quantity, it->second->side);
+    }
     removeFromBook(it->second);
 
     order_map_.erase(it);
