@@ -114,3 +114,27 @@ std::optional<uint64_t> OrderBook::getBestBid() const {
 std::optional<uint64_t> OrderBook::getBestAsk() const {
     return asks_.empty()? std::nullopt : std::optional<uint64_t>(asks_.begin()->first);
 }
+std::vector<std::pair<uint64_t, uint64_t>> OrderBook::getDepth(Side side, size_t levels) const {
+    std::vector<std::pair<uint64_t, uint64_t>> depth;
+    depth.reserve(levels);
+
+    size_t count = 0;
+    if (side == Side::BUY) {
+        for (auto it = bids_.begin(); it != bids_.end() && count < levels; ++it, ++count) {
+            uint64_t total_qty = 0;
+            for (const auto& order : it->second) {
+                total_qty += order.quantity;
+            }
+            depth.emplace_back(it->first, total_qty);
+        }
+    } else {
+        for (auto it = asks_.begin(); it != asks_.end() && count < levels; ++it, ++count) {
+            uint64_t total_qty = 0;
+            for (const auto& order : it->second) {
+                total_qty += order.quantity;
+            }
+            depth.emplace_back(it->first, total_qty);
+        }
+    }
+    return depth;
+}

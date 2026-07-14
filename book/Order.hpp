@@ -13,6 +13,8 @@ struct Order {
     OrderType type;
     uint64_t timestamp;
 
+    Order* prev=nullptr;
+    Order* next= nullptr;
     Order()
         : order_id(0), price(0), quantity(0), side(Side::BUY), type(OrderType::LIMIT), timestamp(0) {}
 

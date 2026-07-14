@@ -30,3 +30,17 @@ if(CMAKE_BUILD_TYPE STREQUAL "Release")
         target_compile_options(OrderBookLib PRIVATE /O2)
     endif()
 endif()
+
+# Add Google Test
+include(FetchContent)
+FetchContent_Declare(
+  googletest
+  GIT_REPOSITORY https://github.com/google/googletest.git
+  GIT_TAG v1.14.0
+)
+FetchContent_MakeAvailable(googletest)
+
+enable_testing()
+add_executable(unit_tests tests/unit_tests.cpp)
+target_link_libraries(unit_tests PRIVATE OrderBookLib GTest::gtest_main)
+add_test(NAME OrderBookTests COMMAND unit_tests)
