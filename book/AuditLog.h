@@ -3,6 +3,8 @@
 #include <string>
 #include <chrono>
 #include <mutex>
+#include <cstdint>
+#include "Order.h"
 enum class EventType : uint8_t { ADD, CANCEL, FILL };
 
 struct AuditEvent{
@@ -11,6 +13,7 @@ struct AuditEvent{
     uint64_t order_id;
     uint64_t price;
     uint64_t quantity;
+    Side side;
 };
 
 class AuditLog {
@@ -24,7 +27,7 @@ public:
         }
     }
 
-    void logEvent(EventType type, uint64_t order_id, uint64_t price, uint64_t qty) {
+    void logEvent(EventType type, uint64_t order_id, uint64_t price, uint64_t qty, Side side = Side::BUY) {
         AuditEvent event;
         event.timestamp_ns =std::chrono::duration_cast<std::chrono::nanoseconds>(
             std::chrono::high_resolution_clock::now().time_since_epoch()).count();
@@ -32,6 +35,7 @@ public:
         event.order_id= order_id;
         event.price=price;
         event.quantity = qty;
+        event.side = side;
         
         writeToFile(event);
     }

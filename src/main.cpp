@@ -2,10 +2,17 @@
 #include "book/LockFreeQueue.h"
 #include "book/LatencyMonitor.h"
 #include "book/AnalyticsEngine.h"
+#include "book/StateRecovery.h"
+#ifdef LL_HAS_CUDA_ANALYTICS
+#include "book/GPUAnalytics.h"
+#endif
 #include <thread>
 #include <random>
 #include <iostream>
 #include <atomic>
+#include <numeric>
+#include <algorithm>
+
 
 int main() {
     // 1. Initialize Core Components
@@ -17,6 +24,8 @@ int main() {
     
     OrderBook* aapl_book = manager.getBook("AAPL");
     if (!aapl_book) return -1;
+
+    recoverState(*aapl_book, "audit.log");
 
     SPSCQueue<Order, 1024 * 1024> queue;
     LatencyMonitor monitor;
@@ -90,6 +99,38 @@ int main() {
     for(const auto& level : depth) {
         std::cout << "  " << level.first << " : " << level.second << "\n";
     }
+
+#ifdef LL_HAS_CUDA_ANALYTICS
+    GPUAnalytics gpu_engine(100000); // Capacity for 100k simulations
+
+    // 1. Take a snapshot of the current order book state
+    GPUBookSnapshot snap = aapl_book->getSnapshot();
+
+    // 2. Generate hypothetical market order sizes (e.g., 100 to 10,000 shares)
+    std::vector<uint64_t> hypothetical_orders(50000);
+    std::mt19937 rng_gpu(123);
+    std::uniform_int_distribution<uint64_t> dist(100, 10000);
+    for (auto& size : hypothetical_orders) size = dist(rng_gpu);
+
+    // 3. Run the GPU stress test
+    auto start_gpu = std::chrono::high_resolution_clock::now();
+    std::vector<double> execution_prices = gpu_engine.runStressTest(snap, hypothetical_orders, true);
+    auto end_gpu = std::chrono::high_resolution_clock::now();
+
+    // 4. Analyze the results
+    std::sort(execution_prices.begin(), execution_prices.end());
+    double p99_price = execution_prices[static_cast<size_t>(execution_prices.size() * 0.99)];
+    double best_ask = snap.asks[0].price;
+    double slippage_ticks = p99_price - best_ask;
+
+    auto gpu_duration_us = std::chrono::duration_cast<std::chrono::microseconds>(end_gpu - start_gpu).count();
+
+    std::cout << "\n=== GPU Monte Carlo Stress Test ===\n";
+    std::cout << "Simulations Run: " << hypothetical_orders.size() << "\n";
+    std::cout << "GPU Execution Time: " << gpu_duration_us << " us\n";
+    std::cout << "Current Best Ask: " << best_ask << "\n";
+    std::cout << "P99 Execution Price (Slippage): " << p99_price << " (+" << slippage_ticks << " ticks)\n";
+#endif
 
     return 0;
 }

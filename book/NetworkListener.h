@@ -10,6 +10,9 @@ public:
     ~NetworkListener();
     void start();
     void stop();
+    bool sendOrder(Order order) {
+        return queue_.push(order);
+    }
 private:
     int port_;
     int server_fd_;
@@ -19,3 +22,25 @@ private:
 
     void runLoop();
 };
+
+#ifdef _WIN32
+    #include <winsock2.h>
+    #include <ws2tcpip.h>
+    #pragma comment(lib, "Ws2_32.lib")
+    // Use WSAPoll or IOCP for Windows
+#else
+    #include <sys/epoll.h>
+    #include <unistd.h>
+    // Use epoll for Linux
+#endif
+
+void NetworkListener::start() {
+#ifdef _WIN32
+    WSADATA wsaData;
+    WSAStartup(MAKEWORD(2, 2), &wsaData);
+    // Initialize WinSock socket...
+#else
+    server_fd_ = socket(AF_INET, SOCK_STREAM | SOCK_NONBLOCK, 0);
+    // Initialize epoll...
+#endif
+}

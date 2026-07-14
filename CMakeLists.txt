@@ -18,6 +18,11 @@ add_library(OrderBookLib STATIC
 )
 target_link_libraries(OrderBookLib PUBLIC Threads::Threads)
 
+# Main Executable
+add_executable(orderbook_app src/main.cpp)
+target_sources(orderbook_app PRIVATE src/StateRecovery.cpp)
+target_link_libraries(orderbook_app PRIVATE OrderBookLib)
+
 # Stress Test Executable
 add_executable(stress_test tests/stress_test.cpp)
 target_link_libraries(stress_test PRIVATE OrderBookLib)
@@ -58,16 +63,17 @@ if(CMAKE_CUDA_COMPILER)
     
     # Add the GPU Analytics Library
     add_library(GpuAnalyticsLib STATIC 
-        src/GpuAnalytics.cpp 
+        src/GPUAnalytics.cpp 
         src/analytics_kernel.cu
     )
     set_target_properties(GpuAnalyticsLib PROPERTIES CUDA_SEPARABLE_COMPILATION ON)
     target_link_libraries(GpuAnalyticsLib PRIVATE CUDA::cudart OrderBookLib)
-    target_include_directories(GpuAnalyticsLib PUBLIC ${PROJECT_SOURCE_DIR}/include)
+    target_include_directories(GpuAnalyticsLib PUBLIC ${PROJECT_SOURCE_DIR})
     
     # Link to main app
     target_link_libraries(orderbook_app PRIVATE GpuAnalyticsLib)
     target_link_libraries(stress_test PRIVATE GpuAnalyticsLib)
+    target_compile_definitions(orderbook_app PRIVATE LL_HAS_CUDA_ANALYTICS=1)
 else()
     message(WARNING "CUDA compiler not found. GPU Analytics will be disabled.")
 endif()
